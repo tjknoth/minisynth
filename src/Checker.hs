@@ -1,11 +1,22 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 module Checker (
-    check
+    MonadND
+  , Checker
+  , runChecker
+  , throwError
+  , addConstraint
+  , lookupVar
+  , solveAll
+  , instantiate
 ) where
 
 import Language
 
 import qualified Data.Map as Map
 import           Control.Monad.State
+import           Control.Monad.Logic
+
 
 type Constraint = (Type, Type) 
 
@@ -15,42 +26,31 @@ data TypingState = TypingState {
   , freshState :: Int
 }
 
+initTS :: TypingState
+initTS = TypingState nullSubst [] 0
+
 type Checker = StateT TypingState
 
-type MonadND m = (Monad m, MonadPlus m)
+runChecker :: (Environment -> Scheme -> Term Type -> Checker (LogicT IO) (Term Type))
+           -> Environment
+           -> Scheme 
+           -> Term Type
+           -> IO Bool
+runChecker check env typ term = do
+  res <- observeManyT 1 (evalStateT (check env typ term ) initTS)
+  return $ case res of
+    [] -> False
+    _:_ -> True
+
+type MonadND m = (Monad m, MonadPlus m, MonadIO m)
 
 throwError :: MonadND m => String -> Checker m a 
-throwError msg = mzero
+throwError _ = mzero
 
 addConstraint :: MonadND m => Constraint -> Checker m ()
 addConstraint c = do
   st@(TypingState _ cs _) <- get
   put $ st { constraints = c:cs }
-
--- Check against goal type
-check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
-check env typ (Lam _ x e) = 
-  case typ of
-    (TArrow a b) -> check (extend x a env) b e
-    _ -> throwError "Expected arrow type"
-check env typ e = do
-  t' <- synth env e
-  addConstraint (annotation t', typ)
-  return e
-
--- Infer type
-synth :: MonadND m => Environment -> Term Type -> Checker m (Term Type)
-synth env (App _ f x) = do
-  f' <- synth env f 
-  case annotation f' of
-    (TArrow a b) -> do
-      x' <- check env b x
-      return $ App b f' x' 
-    _ -> throwError "Expected arrow type"
-synth env (Var _ x) = do
-  t' <- lookupVar x env 
-  return $ Var t' x
-synth env _ = throwError "Expected E-term"
 
 lookupVar :: MonadND m => Id -> Environment -> Checker m Type
 lookupVar x (Env e) =
@@ -70,8 +70,49 @@ instantiate (Forall as t) = do
   let s = Map.fromList $ zip as as'
   return $ apply s t
 
-solve :: MonadND m => [Constraint] -> Checker m ()
-solve cs = undefined
+solveAll :: MonadND m => Checker m ()
+solveAll = do
+  (TypingState su cs f) <- get
+  liftIO $ print $ "Solving: " ++ show cs
+  liftIO $ print $ "Assignment: " ++ show (Map.toList su)
+  s' <- solve
+  st <- get
+  put $ st { assignment = s' }
+
+solve :: MonadND m => Checker m Subst
+solve = do 
+  (TypingState su cs f) <- get
+  case cs of
+    [] -> return su
+    ((t1, t2): cs0) -> do
+      (su1, cs1)  <- unifies t1 t2
+      put $ TypingState (su1 `compose` su) (cs1 ++ apply su1 cs0) f
+      solve 
+
+type Unifier = (Subst, [Constraint])
+
+emptyUnifer :: Unifier
+emptyUnifer = (nullSubst, [])
+
+unifies :: MonadND m => Type -> Type -> Checker m Unifier
+unifies t1 t2 | t1 == t2 = return emptyUnifer
+unifies (TVar v) t = v `bind` t
+unifies t (TVar v) = v `bind` t
+unifies (TArrow t1 t2) (TArrow t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies _ _ = throwError "unification fail"
+
+unifyMany :: MonadND m => [Type] -> [Type] -> Checker m Unifier
+unifyMany [] [] = return emptyUnifer
+unifyMany (t1 : ts1) (t2 : ts2) =
+  do (su1,cs1) <- unifies t1 t2
+     (su2,cs2) <- unifyMany (apply su1 ts1) (apply su1 ts2)
+     return (su2 `compose` su1, cs1 ++ cs2)
+unifyMany _ _ = throwError "unification mismatch"
+
+bind :: MonadND m => TVar -> Type -> Checker m Unifier 
+bind a t | t == TVar a = return (nullSubst, [])
+         | occurs a t  = throwError "infinite type" 
+         | otherwise   = return $ (Map.singleton a t, [])
 
 currentAssignment :: MonadND m => Type -> Checker m Type
 currentAssignment t = do
