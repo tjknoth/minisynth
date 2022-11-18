@@ -9,6 +9,7 @@ module Language (
   , annotation
   , tint, tbool, tvar, (-->)
   , extend
+  , occurs
 ) where
 
 import           Data.Map (Map)
@@ -89,3 +90,6 @@ instance Substitutable a => Substitutable [a] where
 instance Substitutable Environment where
   apply s (Env env) = Env $ Map.map (apply s) env
   ftv (Env env) = ftv $ Map.elems env
+
+occurs :: Substitutable a => TVar -> a -> Bool
+occurs a t = a `Set.member` ftv t
