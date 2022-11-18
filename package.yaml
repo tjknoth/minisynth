@@ -45,3 +45,5 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - minisynth 
+    - containers
+    - mtl
