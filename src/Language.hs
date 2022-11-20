@@ -20,6 +20,7 @@ module Language (
   , occurs
 ) where
 
+import           Data.String (IsString (..))
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
@@ -41,6 +42,9 @@ data Term a =
 var :: Id -> Term Type
 var = Var TAny
 
+instance IsString (Term Type) where
+  fromString = var
+
 ($$) :: Term Type -> Term Type -> Term Type
 f $$ x = App TAny f x
 
@@ -60,6 +64,9 @@ data Prim = Int | Bool
 newtype TVar = TV Id
   deriving (Eq, Ord, Show)
 
+instance IsString TVar where
+  fromString = TV
+
 -- Type
 data Type = 
     TPrim Prim
@@ -68,12 +75,14 @@ data Type =
   | TAny
   deriving (Eq, Ord, Show)
 
+instance IsString Type where
+  fromString = TVar . TV
+
 annotation :: Term a -> a
 annotation (Var a _) = a
 annotation (App a _ _) = a
 annotation (Lam a _ _) = a
 annotation (Hole a _) = a
-
 
 tint, tbool :: Type
 tint = TPrim Int
@@ -84,6 +93,9 @@ tvar = TVar . TV
 
 (-->) :: Type -> Type -> Type
 (-->) = TArrow
+
+infixr 9 -->
+infixl 9 $$
 
 tany :: Type
 tany = TAny

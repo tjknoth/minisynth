@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import           Language
 import           Checker
 import qualified RoundTrip as RT
@@ -38,6 +40,14 @@ roundTripTests = do
 
 tests :: [(Result, Scheme, Term Type)]
 tests = [
-    (OK, Forall [TV "a"] (tvar "a" --> tvar "a"), lam "x" (var "x")) -- \x.x :: a -> a
-  , (Error, Forall [TV "a", TV "b"] (tvar "a" --> tvar "b"), lam "x" (var "x")) -- \x.x :: a -> b
+    (OK, Forall [TV "a"] ("a" --> "a"), lam "x" "x") 
+  , (Error, Forall [TV "a", TV "b"] ("a" --> "b"), lam "x" "x") 
+  , (OK, Forall [TV "a", TV "a"] (("a" --> "b") --> "a" --> "b"), lam "f" (lam "x" ("f" $$ "x")))    
+  , (Error, Forall [TV "a", TV "a"] (("a" --> "b") --> "a" --> "b"), lam "f" (lam "x" ("x" $$ "f"))) 
+  , (OK, Forall [TV "a", TV "b", TV "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c"), lam "f" (lam "g" (lam "x" ("g" $$ ("f" $$ "x")))))
+  , (Error, Forall [TV "a", TV "b", TV "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c"), lam "f" (lam "g" (lam "x" ("f" $$ ("g" $$ "x")))))
+  , (Error, Forall [TV "a", TV "b", TV "c"] (("a" --> "a") --> ("b" --> "c") --> "a" --> "c"), lam "f" (lam "g" (lam "x" ("g" $$ ("f" $$ "x")))))
+  , (OK, Forall [] (tbool --> tbool), lam "x" "x") 
+  , (OK, Forall [] (tint --> tint), lam "x" "x") 
+  , (OK, Forall [] ((tint --> tbool) --> tint --> tbool), lam "f" (lam "x" ("f" $$ "x")))
   ]

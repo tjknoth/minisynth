@@ -22,6 +22,7 @@ import           Control.Monad.Logic
 
 
 data Constraint = Constraint Environment Type Type
+  deriving (Eq, Ord, Show)
 
 instance Substitutable Constraint where
   apply s (Constraint e t t') = Constraint e (apply s t) (apply s t')
@@ -52,7 +53,9 @@ runChecker check env typ term = do
 type MonadND m = (Monad m, MonadPlus m, MonadIO m)
 
 throwError :: MonadND m => String -> Checker m a 
-throwError _ = mzero
+throwError _ = do 
+  -- liftIO $ putStrLn msg -- hacky
+  mzero
 
 addConstraint :: MonadND m => Constraint -> Checker m ()
 addConstraint c = do
@@ -105,6 +108,8 @@ emptyUnifer :: Unifier
 emptyUnifer = (nullSubst, [])
 
 unifies :: MonadND m => Environment -> Type -> Type -> Checker m Unifier
+unifies _ TAny _ = return emptyUnifer
+unifies _ _ TAny = return emptyUnifer
 unifies _ t1 t2 | t1 == t2 = return emptyUnifer
 unifies env (TVar v) t | not (isBound v env) = v `bind` t
 unifies env t (TVar v) | not (isBound v env) = v `bind` t
