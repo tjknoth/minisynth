@@ -150,9 +150,5 @@ instance Substitutable a => Substitutable (a, a) where
   apply s (a, b) = (apply s a, apply s b) 
   ftv (a, b)     = Set.union (ftv a) (ftv b)
 
---instance Substitutable Environment where
---  apply s (Env env tvs) = Env (Map.map (apply s) env) tvs
---  ftv (Env env tvs) = ftv $ Map.elems env
-
 occurs :: Substitutable a => TVar -> a -> Bool
 occurs a t = a `Set.member` ftv t

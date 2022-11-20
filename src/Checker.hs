@@ -65,7 +65,7 @@ addConstraint c = do
 lookupVar :: MonadND m => Id -> Environment -> Checker m Type
 lookupVar x (Env e _) =
   case Map.lookup x e of
-    Nothing -> undefined -- error
+    Nothing -> throwError "variable not found" -- error
     Just s -> instantiate s -- instantiate
 
 fresh :: MonadND m  => Checker m Type
