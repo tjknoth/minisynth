@@ -3,34 +3,37 @@ import           Checker
 import qualified RoundTrip as RT
 import qualified Gradual as G
 
+import           Control.Monad.Logic (LogicT)
+
 main :: IO ()
 main = do
-  print ""
+  putStrLn ""
   gradualTests
-  print ""
+  putStrLn ""
   roundTripTests
 
 data Result = Error | OK
 
+check :: (Environment -> Scheme -> Term Type -> Checker (LogicT IO) (Term Type)) -> (Result, Scheme, Term Type) -> IO ()
 check go (OK, t, e) = do
   r <- runChecker go initEnv t e
   if r
-    then print "OK"
-    else print $ "Error on OK term: " ++ show e
+    then putStrLn "OK"
+    else putStrLn $ "Error on OK term: " ++ show e
 check go (Error, t, e) = do
   r <- runChecker go initEnv t e
   if r
-    then print $ "Checked bad term: " ++ show e
-    else print "OK" 
+    then putStrLn $ "Checked bad term: " ++ show e
+    else putStrLn "OK" 
 
 gradualTests :: IO ()
 gradualTests = do
-  print "Gradual typechecker:"
+  putStrLn "Gradual typechecker:"
   mapM_ (check G.checkGoal) tests
 
 roundTripTests :: IO ()
 roundTripTests = do
-  print "Round trip typechecker:"
+  putStrLn "Round trip typechecker:"
   mapM_ (check RT.checkGoal) tests
 
 tests :: [(Result, Scheme, Term Type)]

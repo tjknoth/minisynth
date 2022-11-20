@@ -92,16 +92,20 @@ data Scheme =
   Forall [TVar] Type
   deriving (Eq, Ord, Show)
 
-newtype Environment = Env (Map Id Scheme)
-  deriving (Eq, Ord, Show)
+data Environment = Env {
+    vars :: Map Id Scheme
+  , boundTVs :: Set TVar
+  } deriving (Eq, Ord, Show)
 
-initEnv = Env $ Map.empty
+initEnv :: Environment
+initEnv = Env Map.empty Set.empty
 
 extend :: Id -> Type -> Environment -> Environment
-extend x t (Env e) = Env $ Map.insert x (Forall [] t) e 
+extend x t (Env e tvs) = Env (Map.insert x (Forall [] t) e) tvs
 
 type Subst = Map TVar Type
 
+nullSubst :: Subst
 nullSubst = Map.empty
 
 compose :: Subst -> Subst -> Subst
@@ -115,7 +119,7 @@ instance Substitutable Type where
   apply _ t@TPrim{}    = t
   apply s t@(TVar a)   = Map.findWithDefault t a s
   apply s (TArrow a b) = apply s a --> apply s b
-  apply s TAny = TAny
+  apply _ TAny = TAny
   ftv TPrim{}      = Set.empty
   ftv (TVar a)     = Set.singleton a
   ftv (TArrow a b) = ftv a `Set.union` ftv b
@@ -134,9 +138,9 @@ instance Substitutable a => Substitutable (a, a) where
   apply s (a, b) = (apply s a, apply s b) 
   ftv (a, b)     = Set.union (ftv a) (ftv b)
 
-instance Substitutable Environment where
-  apply s (Env env) = Env $ Map.map (apply s) env
-  ftv (Env env) = ftv $ Map.elems env
+--instance Substitutable Environment where
+--  apply s (Env env tvs) = Env (Map.map (apply s) env) tvs
+--  ftv (Env env tvs) = ftv $ Map.elems env
 
 occurs :: Substitutable a => TVar -> a -> Bool
 occurs a t = a `Set.member` ftv t

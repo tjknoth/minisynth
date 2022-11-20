@@ -3,15 +3,11 @@ module Gradual (
   , checkGoal
 ) where
 
-import Control.Monad.IO.Class
-
 import Language
 import Checker
 
 checkGoal :: MonadND m => Environment -> Scheme -> Term Type -> Checker m (Term Type)
-checkGoal env s e = do
-  typ <- instantiate s
-  check env typ e
+checkGoal env s@(Forall _ typ) = check (instantiateGoal s env) typ
 
 -- Check against goal type
 check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
@@ -23,8 +19,7 @@ check env typ (Lam _ x e) =
     _ -> throwError "Expected arrow type"
 check env typ e = do
   t' <- synth env e
-  liftIO $ print $ "Synthed: " ++ show t'
-  addConstraint (annotation t', typ)
+  addConstraint $ Constraint env (annotation t') typ
   solveAll
   return e
 
@@ -37,13 +32,13 @@ synth env (App _ f x) = do
   f' <- synth env f 
   case annotation f' of
     (TArrow a b) -> do
-      x' <- check env b x
+      x' <- check env a x
       return $ App b f' x' 
     _ -> throwError "Expected arrow type"
 synth env (Var _ x) = do
   t' <- lookupVar x env 
   return $ Var t' x
-synth env _ = throwError "Expected E-term"
+synth _ _ = throwError "Expected E-term"
 
 holeType :: Scheme
 holeType = Forall [TV "a"] $ tvar "a"
