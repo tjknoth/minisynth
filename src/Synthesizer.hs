@@ -15,8 +15,15 @@ newtype SynthesizerState = SynthesizerState Int
 
 type Synthesizer m = StateT SynthesizerState (Checker m)
 
-synthesize :: Int -> Environment -> Scheme -> IO (Maybe (Term Type))
-synthesize m env sch = runChecker (runSynthesizer m env sch)
+synthesize :: String -> Int -> Environment -> Scheme -> IO ()
+synthesize name m env sch = do
+  res <- runChecker (runSynthesizer m env sch)
+  case res of
+    Nothing -> putStrLn "Impossible synthesis goal"
+    Just t -> do
+      putStrLn $ unwords [name, "::", pretty sch]
+      putStrLn $ pretty t
+
 
 runSynthesizer :: MonadND m => Int -> Environment -> Scheme -> Checker m (Term Type)
 runSynthesizer m env sch = evalStateT (explore env sch) (SynthesizerState m)

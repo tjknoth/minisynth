@@ -11,6 +11,7 @@ checkGoal env s@(Forall _ typ) = check (instantiateGoal s env) typ
 
 -- Check against goal type
 check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
+check _ _ (Hole _ (Filled e)) = return e
 check env typ (Hole _ _) =
   return $ Hole typ $ Spec env typ
 check env typ (Lam _ x e) = 
@@ -25,6 +26,7 @@ check env typ e = do
 
 -- Infer type
 synth :: MonadND m => Environment -> Term Type -> Checker m (Term Type)
+synth _ (Hole _ (Filled e)) = return e
 synth env (Hole _ _) = do
   t <- instantiate holeType 
   return $ Hole t $ Spec env t

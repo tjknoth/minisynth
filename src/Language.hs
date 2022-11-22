@@ -11,6 +11,7 @@ module Language (
   , Subst
   , Scheme (..)
   , Substitutable (..)
+  , Pretty (..)
   , var, lam, ($$)
   , hole, spechole, filled
   , nullSubst, compose
@@ -28,6 +29,7 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import           Data.List (intercalate)
 
 type Id = String
 
@@ -165,3 +167,35 @@ instance Substitutable a => Substitutable (a, a) where
 
 occurs :: Substitutable a => TVar -> a -> Bool
 occurs a t = a `Set.member` ftv t
+
+class Pretty a where
+  pretty :: a -> String
+
+instance Pretty (Term a) where
+  pretty (Var _ x) = x 
+  pretty (App _ f x) = unwords [pretty f, optParens x]
+    where
+      optParens v@Var{} = pretty v
+      optParens e = parens (pretty e)
+  pretty (Lam _ x e) = "\\"  ++ x ++ ". " ++ pretty e
+  pretty (Hole _ (Filled e)) = pretty e
+  pretty (Hole _ _) = "??"
+
+instance Pretty Prim where
+  pretty Int = "int"
+  pretty Bool = "bool"
+
+instance Pretty Type where
+  pretty (TPrim t) = pretty t
+  pretty (TVar (TV a)) = a
+  pretty (TArrow a b) = unwords [optParens a, "->", pretty b]
+    where
+      optParens t@TArrow{} = parens (pretty t)
+      optParens t          = pretty t
+  pretty TAny = "?"
+
+instance Pretty Scheme where
+  pretty (Forall as t) = unwords ["forall", intercalate "," (map (\(TV v) -> v) as), ".", pretty t]
+
+parens :: String -> String
+parens s = "(" ++ s ++ ")"
