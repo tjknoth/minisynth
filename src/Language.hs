@@ -3,7 +3,7 @@
 
 module Language ( 
     Id
-  , Spec (..)
+  , Hole (..)
   , Term (..)
   , Type (..)
   , TVar (..)
@@ -11,13 +11,16 @@ module Language (
   , Subst
   , Scheme (..)
   , Substitutable (..)
-  , var, lam, ($$), hole, spechole
+  , var, lam, ($$)
+  , hole, spechole, filled
   , nullSubst, compose
   , initEnv
   , annotation
   , tint, tbool, tvar, (-->), tany
   , extend
   , occurs
+  , arity
+  , toMonotype
 ) where
 
 import           Data.String (IsString (..))
@@ -28,7 +31,7 @@ import qualified Data.Set as Set
 
 type Id = String
 
-data Spec = Spec Type Environment
+data Hole = NoSpec | Spec Environment Type | Filled (Term Type)
   deriving (Eq, Ord, Show)
 
 -- (Potentially annotated) program term
@@ -36,7 +39,7 @@ data Term a =
     Var a Id
   | App a (Term a) (Term a)
   | Lam a Id (Term a)
-  | Hole a (Maybe Spec)
+  | Hole a Hole
   deriving (Eq, Ord, Show, Functor)
 
 var :: Id -> Term Type
@@ -52,10 +55,13 @@ lam :: Id -> Term Type -> Term Type
 lam = Lam TAny
 
 hole :: Term Type
-hole = Hole TAny Nothing
+hole = Hole TAny NoSpec
 
-spechole :: Spec -> Term Type
-spechole = Hole TAny . Just
+spechole :: Environment -> Type -> Term Type
+spechole e t = Hole TAny $ Spec e t
+
+filled :: Term Type -> Term Type
+filled = Hole TAny . Filled
 
 -- Primitive type
 data Prim = Int | Bool 
@@ -75,14 +81,18 @@ data Type =
   | TAny
   deriving (Eq, Ord, Show)
 
+arity :: Type -> Int
+arity (TArrow _ b) = 1 + arity b
+arity _ = 0
+
 instance IsString Type where
   fromString = TVar . TV
 
 annotation :: Term a -> a
-annotation (Var a _) = a
+annotation (Var a _)   = a
 annotation (App a _ _) = a
 annotation (Lam a _ _) = a
-annotation (Hole a _) = a
+annotation (Hole a _)  = a
 
 tint, tbool :: Type
 tint = TPrim Int
@@ -103,6 +113,9 @@ tany = TAny
 data Scheme = 
   Forall [TVar] Type
   deriving (Eq, Ord, Show)
+
+toMonotype :: Scheme -> Type
+toMonotype (Forall _ t) = t
 
 data Environment = Env {
     vars :: Map Id Scheme

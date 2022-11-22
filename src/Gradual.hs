@@ -12,10 +12,10 @@ checkGoal env s@(Forall _ typ) = check (instantiateGoal s env) typ
 -- Check against goal type
 check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
 check env typ (Hole _ _) =
-  return $ Hole typ $ Just $ Spec typ env
+  return $ Hole typ $ Spec env typ
 check env typ (Lam _ x e) = 
   case typ of
-    (TArrow a b) -> check (extend x a env) b e
+    (TArrow a b) -> Lam (a --> b) x <$> check (extend x a env) b e
     _ -> throwError "Expected arrow type"
 check env typ e = do
   t' <- synth env e
@@ -27,7 +27,7 @@ check env typ e = do
 synth :: MonadND m => Environment -> Term Type -> Checker m (Term Type)
 synth env (Hole _ _) = do
   t <- instantiate holeType 
-  return $ Hole t $ Just $ Spec t env
+  return $ Hole t $ Spec env t
 synth env (App _ f x) = do
   f' <- synth env f 
   case annotation f' of

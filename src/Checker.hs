@@ -5,12 +5,14 @@ module Checker (
   , Checker
   , Constraint (..)
   , runChecker
+  , typecheck
   , throwError
   , addConstraint
   , lookupVar
   , solveAll
   , instantiate
   , instantiateGoal
+  , freshId
 ) where
 
 import Language
@@ -31,24 +33,28 @@ instance Substitutable Constraint where
 data TypingState = TypingState {
     assignment :: Subst
   , constraints :: [Constraint]
-  , freshState :: Int
+  , freshTVars :: Int
+  , freshVars :: Int
 }
 
 initTS :: TypingState
-initTS = TypingState nullSubst [] 0
+initTS = TypingState nullSubst [] 0 0
 
 type Checker = StateT TypingState
 
-runChecker :: (Environment -> Scheme -> Term Type -> Checker (LogicT IO) (Term Type))
-           -> Environment
-           -> Scheme 
-           -> Term Type
-           -> IO Bool
-runChecker check env typ term = do
-  res <- observeManyT 1 (evalStateT (check env typ term ) initTS)
-  return $ case res of
-    [] -> False
-    _:_ -> True
+runChecker :: Checker (LogicT IO) a -> IO (Maybe a)
+runChecker go = do
+  r <- observeManyT 1 (evalStateT go initTS) 
+  case r of
+    []    -> return Nothing
+    (a:_) -> return $ Just a
+
+typecheck :: (Environment -> Scheme -> Term Type -> Checker (LogicT IO) (Term Type))
+          -> Environment
+          -> Scheme 
+          -> Term Type
+          -> IO (Maybe (Term Type))
+typecheck check env typ term = runChecker (check env typ term)
 
 type MonadND m = (Monad m, MonadPlus m, MonadIO m)
 
@@ -59,7 +65,7 @@ throwError _ = do
 
 addConstraint :: MonadND m => Constraint -> Checker m ()
 addConstraint c = do
-  st@(TypingState _ cs _) <- get
+  st@(TypingState _ cs _ _) <- get
   put $ st { constraints = c:cs }
 
 lookupVar :: MonadND m => Id -> Environment -> Checker m Type
@@ -70,9 +76,15 @@ lookupVar x (Env e _) =
 
 fresh :: MonadND m  => Checker m Type
 fresh = do
-  st@(TypingState _ _ f) <- get
-  put $ st { freshState = f + 1 }
+  st@(TypingState _ _ f _) <- get
+  put $ st { freshTVars = f + 1 }
   return $ tvar $ "A" ++ show f
+
+freshId :: MonadND m  => Checker m Id
+freshId = do
+  st@(TypingState _ _ _ f) <- get
+  put $ st { freshVars = f + 1 }
+  return $ "X" ++ show f
 
 instantiate :: MonadND m => Scheme -> Checker m Type
 instantiate (Forall as t) = do
@@ -94,7 +106,7 @@ solveAll = do
 
 solve :: MonadND m => Checker m Subst
 solve = do 
-  st@(TypingState su cs _) <- get
+  st@(TypingState su cs _ _) <- get
   case cs of
     [] -> return su
     (Constraint env t1 t2: cs0) -> do

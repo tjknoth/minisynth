@@ -5,6 +5,7 @@ import           Checker
 import qualified RoundTrip as RT
 import qualified Gradual as G
 
+import           Data.Maybe (isJust)
 import           Control.Monad.Logic (LogicT)
 
 main :: IO ()
@@ -18,12 +19,12 @@ data Result = Error | OK
 
 check :: (Environment -> Scheme -> Term Type -> Checker (LogicT IO) (Term Type)) -> (Result, Scheme, Term Type) -> IO ()
 check go (OK, t, e) = do
-  r <- runChecker go initEnv t e
+  r <- isJust <$> typecheck go initEnv t e
   if r
     then putStrLn "OK"
     else putStrLn $ "Error on OK term: " ++ show e
 check go (Error, t, e) = do
-  r <- runChecker go initEnv t e
+  r <- isJust <$> typecheck go initEnv t e
   if r
     then putStrLn $ "Checked bad term: " ++ show e
     else putStrLn "OK" 
