@@ -1,6 +1,7 @@
 module Synthesizer (
     runSynthesizer
   , synthesize
+  , solveGoal
 ) where
 
 import Language
@@ -17,13 +18,15 @@ type Synthesizer m = StateT SynthesizerState (Checker m)
 
 synthesize :: String -> Int -> Environment -> Scheme -> IO ()
 synthesize name m env sch = do
-  res <- runChecker (runSynthesizer m env sch)
+  res <- solveGoal m env sch 
   case res of
     Nothing -> putStrLn "Impossible synthesis goal"
     Just t -> do
       putStrLn $ unwords [name, "::", pretty sch]
       putStrLn $ pretty t
 
+solveGoal :: Int -> Environment -> Scheme -> IO (Maybe (Term Type))
+solveGoal m env sch = runChecker (runSynthesizer m env sch)
 
 runSynthesizer :: MonadND m => Int -> Environment -> Scheme -> Checker m (Term Type)
 runSynthesizer m env sch = evalStateT (explore env sch) (SynthesizerState m)
@@ -50,6 +53,7 @@ generate d env typ (Lam _ x e) = do
     _ -> error "Expected lambda"
 generate d env typ (App _ f x) = do
   guard (arity typ < maxArity)
+  -- This is ugly but whatever
   enumerateApp (fillUpTo (d - 1)) (fillAt (d - 1)) `mplus` enumerateApp (fillAt d) (fillUpTo (d - 1))
   where
     maxArity = maximum $ map (arity . toMonotype) (Map.elems (vars env))
@@ -57,14 +61,14 @@ generate d env typ (App _ f x) = do
       f' <- lift $ check env typ (f $$ x) 
       case f' of 
         (App _ (Hole _ (Spec fEnv fTyp)) _) -> do
-          fActual <- fun fEnv fTyp -- TODO: don't be dumb
+          fActual <- fun fEnv fTyp
           app' <- lift $ check env typ (filled fActual $$ x)
           case app' of
             (App _ _ (Hole _ (Spec xEnv xTyp))) -> do
-              xActual <- arg xEnv xTyp -- TODO: don't be dumb
+              xActual <- arg xEnv xTyp
               lift $ check env typ (fActual $$ filled xActual)
             _ -> error "Argument not a hole"
-        _ -> error "Function not a hole"
+        _ -> error $ "Function not a hole: " ++ show f'
 generate _ env typ e@Var{} = lift $ check env typ e
 
 fillUpTo :: MonadND m => Int -> Environment -> Type -> Synthesizer m (Term Type)
@@ -73,7 +77,8 @@ fillUpTo d env typ = do
   fillAt d' env typ
 
 fillAt :: MonadND m => Int -> Environment -> Type -> Synthesizer m (Term Type)
-fillAt d env typ = msum [generateLambda env typ, if d > 1 then generateApp env typ else generateSym env typ] >>= generate d env typ
+fillAt d env typ = 
+  msum [generateLambda env typ, if d > 1 then generateApp env typ else generateSym env typ] >>= generate d env typ
 
 generateLambda :: MonadND m => Environment -> Type -> Synthesizer m (Term Type)
 generateLambda _ _ = do

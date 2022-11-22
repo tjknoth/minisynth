@@ -7,7 +7,7 @@ import Language
 import Checker
 
 checkGoal :: MonadND m => Environment -> Scheme -> Term Type -> Checker m (Term Type)
-checkGoal env s@(Forall _ typ) = check (instantiateGoal s env) typ
+checkGoal env s@(Forall _ typ) = check (bindGoal s env) typ
 
 -- Check against goal type
 check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)

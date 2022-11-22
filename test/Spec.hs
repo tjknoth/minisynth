@@ -4,6 +4,7 @@ import           Language
 import           Checker
 import qualified RoundTrip as RT
 import qualified Gradual as G
+import           Synthesizer
 
 import           Data.Maybe (isJust)
 import           Control.Monad.Logic (LogicT)
@@ -14,6 +15,8 @@ main = do
   gradualTests
   putStrLn ""
   roundTripTests
+  putStrLn ""
+  gradualSynthesisTests
 
 data Result = Error | OK
 
@@ -39,6 +42,24 @@ roundTripTests = do
   putStrLn "Round trip typechecker:"
   mapM_ (check RT.checkGoal) tests
 
+gradualSynthesisTests :: IO ()
+gradualSynthesisTests = do
+  putStrLn "Gradual synthesizer:"
+  mapM_ synth synthtests
+  where
+    synth (f, env, sch) = do
+      res <- solveGoal depth env sch
+      case res of
+        Nothing -> putStrLn "Synthesis failed"
+        Just t -> do
+          ok <- isJust <$> typecheck G.checkGoal env sch (TAny <$ t)
+          if ok
+            then putStrLn "OK"
+            else putStrLn "Synthesized bad term"
+    depth = 5
+
+
+
 tests :: [(Result, Scheme, Term Type)]
 tests = [
     (OK, Forall ["a"] ("a" --> "a"), lam "x" "x")
@@ -57,5 +78,10 @@ tests = [
   , (Error, Forall ["a", "b"] ((tint --> "a") --> "b" --> "a"), lam "f" (lam "x" ("f" $$ "x")))
   , (OK, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" (lam "x" (lam "y" ("f" $$ "x" $$ "y"))))
   , (Error, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" (lam "x" (lam "y" ("f" $$ "x" $$ "x"))))
-  , (OK, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" "f")
+  ]
+
+synthtests :: [(String, Environment, Scheme)]
+synthtests = [
+    ("id", initEnv, Forall ["a"] ("a" --> "a"))
+  , ("app1", initEnv, Forall ["a", "b"] (("a" --> "b") --> "a" --> "b"))
   ]

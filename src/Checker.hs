@@ -11,7 +11,7 @@ module Checker (
   , lookupVar
   , solveAll
   , instantiate
-  , instantiateGoal
+  , bindGoal 
   , freshId
 ) where
 
@@ -59,9 +59,7 @@ typecheck check env typ term = runChecker (check env typ term)
 type MonadND m = (Monad m, MonadPlus m, MonadIO m)
 
 throwError :: MonadND m => String -> Checker m a 
-throwError _ = do 
-  -- liftIO $ putStrLn msg -- hacky
-  mzero
+throwError _ = mzero
 
 addConstraint :: MonadND m => Constraint -> Checker m ()
 addConstraint c = do
@@ -71,11 +69,11 @@ addConstraint c = do
 lookupVar :: MonadND m => Id -> Environment -> Checker m Type
 lookupVar x (Env e _) =
   case Map.lookup x e of
-    Nothing -> throwError "variable not found" -- error
-    Just s -> instantiate s -- instantiate
+    Nothing -> throwError "variable not found"
+    Just s -> instantiate s
 
-fresh :: MonadND m  => Checker m Type
-fresh = do
+freshType :: MonadND m  => Checker m Type
+freshType = do
   st@(TypingState _ _ f _) <- get
   put $ st { freshTVars = f + 1 }
   return $ tvar $ "A" ++ show f
@@ -88,12 +86,12 @@ freshId = do
 
 instantiate :: MonadND m => Scheme -> Checker m Type
 instantiate (Forall as t) = do
-  as' <- mapM (const fresh) as
+  as' <- mapM (const freshType) as
   let s = Map.fromList $ zip as as'
   return $ apply s t
 
-instantiateGoal :: Scheme -> Environment -> Environment
-instantiateGoal (Forall as _) (Env vs tvs) = Env vs $ foldr Set.insert tvs as
+bindGoal :: Scheme -> Environment -> Environment
+bindGoal (Forall as _) (Env vs tvs) = Env vs $ foldr Set.insert tvs as
 
 isBound :: TVar -> Environment -> Bool
 isBound tv (Env _ tvs) = tv `Set.member` tvs

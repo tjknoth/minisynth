@@ -44,11 +44,12 @@ data Term a =
   | Hole a Hole
   deriving (Eq, Ord, Show, Functor)
 
-var :: Id -> Term Type
-var = Var TAny
-
 instance IsString (Term Type) where
   fromString = var
+
+-- Smart-ish constructors
+var :: Id -> Term Type
+var = Var TAny
 
 ($$) :: Term Type -> Term Type -> Term Type
 f $$ x = App TAny f x
@@ -65,7 +66,7 @@ spechole e t = Hole TAny $ Spec e t
 filled :: Term Type -> Term Type
 filled = Hole TAny . Filled
 
--- Primitive type
+-- Primitive types
 data Prim = Int | Bool 
   deriving (Eq, Ord, Show)
 
@@ -160,10 +161,6 @@ instance Substitutable Scheme where
 instance Substitutable a => Substitutable [a] where
   apply = fmap . apply
   ftv   = foldr (Set.union . ftv) Set.empty
-
-instance Substitutable a => Substitutable (a, a) where
-  apply s (a, b) = (apply s a, apply s b) 
-  ftv (a, b)     = Set.union (ftv a) (ftv b)
 
 occurs :: Substitutable a => TVar -> a -> Bool
 occurs a t = a `Set.member` ftv t
