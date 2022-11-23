@@ -105,7 +105,7 @@ solveAll = do
 solve :: MonadND m => Checker m Subst
 solve = do 
   st@(TypingState su cs _ _) <- get
-  case cs of
+  case apply su cs of -- make sure constraints are up-to-date w current assignment
     [] -> return su
     (Constraint env t1 t2: cs0) -> do
       (su1, cs1) <- unifies env t1 t2
