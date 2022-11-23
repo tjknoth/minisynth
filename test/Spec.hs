@@ -91,5 +91,5 @@ synthtests :: [(String, Environment, Scheme)]
 synthtests = [
     ("id", initEnv, Forall ["a"] ("a" --> "a"))
   , ("app1", initEnv, Forall ["a", "b"] (("a" --> "b") --> "a" --> "b"))
-  -- , ("compose", initEnv, (Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c")))
+  , ("compose", initEnv, Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c"))
   ]

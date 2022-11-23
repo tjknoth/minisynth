@@ -17,14 +17,11 @@ check env typ (Hole _ _) =
 check env (TArrow a b) e =
   case e of
     (Lam _ x body) -> Lam (a --> b) x <$> check (extend x a env) b body 
-    _ -> do
-      e' <- synth env e 
-      checkE env (a --> b) (annotation e')
-      return e'
-check env typ e = do
-  e' <- synth env e
-  checkE env typ (annotation e')
-  return e'
+    _ -> synth env (a --> b) e
+      --e' <- synth env e 
+      --checkE env (a --> b) (annotation e')
+      --return e'
+check env typ e = synth env typ e
 
 checkE :: MonadND m => Environment -> Type -> Type -> Checker m ()
 checkE env t t' = do
@@ -32,17 +29,19 @@ checkE env t t' = do
   solveAll
 
 -- Infer type
-synth :: MonadND m => Environment -> Term Type -> Checker m (Term Type)
-synth _ (Hole _ (Filled e)) = return e
-synth env (Hole _ _) = return $ Hole tany $ Spec env tany [RSym, RApp]
-synth env (App _ f x) = do
-  f' <- synth env f
+synth :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
+synth _ _ (Hole _ (Filled e)) = return e
+synth env typ (Hole _ _) = return $ Hole typ $ Spec env typ [RSym, RApp]
+synth env typ (App _ f x) = do
+  f' <- synth env (tany --> typ) f
   case annotation f' of
     (TArrow a b) -> do
       x' <- check env a x
+      checkE env typ b
       return $ App b f' x'
     _ -> throwError "Expected arrow type"
-synth env (Var _ x) = do
+synth env typ (Var _ x) = do
   t' <- lookupVar x env
+  checkE env typ t'
   return $ Var t' x
-synth _ _ = throwError "Expected E-term"
+synth _ _ _ = throwError "Expected E-term"
