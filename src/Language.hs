@@ -7,6 +7,7 @@ module Language (
   , Term (..)
   , Type (..)
   , TVar (..)
+  , Rule (..)
   , Environment (..)
   , Subst
   , Scheme (..)
@@ -33,7 +34,10 @@ import           Data.List (intercalate)
 
 type Id = String
 
-data Hole = NoSpec | Spec Environment Type | Filled (Term Type)
+data Rule = RLam | RSym | RApp
+  deriving (Show, Eq, Ord)
+
+data Hole = NoSpec | Spec Environment Type [Rule] | Filled (Term Type)
   deriving (Eq, Ord, Show)
 
 -- (Potentially annotated) program term
@@ -60,11 +64,11 @@ lam = Lam TAny
 hole :: Term Type
 hole = Hole TAny NoSpec
 
-spechole :: Environment -> Type -> Term Type
-spechole e t = Hole TAny $ Spec e t
+spechole :: Environment -> Type -> [Rule] -> Term Type
+spechole e t rs = Hole TAny $ Spec e t rs
 
 filled :: Term Type -> Term Type
-filled = Hole TAny . Filled
+filled e = Hole (annotation e) $ Filled e
 
 -- Primitive types
 data Prim = Int | Bool 

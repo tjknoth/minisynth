@@ -4,3 +4,5 @@
 * enforce normal form in direct synthesizer / RT typechecker
 * write more synthesizer tests 
 * stop using TAny in gradual checker?
+* Make the CLI less stupid
+* fix normal form stuff

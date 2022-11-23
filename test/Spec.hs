@@ -17,6 +17,8 @@ main = do
   roundTripTests
   putStrLn ""
   gradualSynthesisTests
+  putStrLn ""
+  roundTripSynthesisTests
 
 data Result = Error | OK
 
@@ -45,18 +47,23 @@ roundTripTests = do
 gradualSynthesisTests :: IO ()
 gradualSynthesisTests = do
   putStrLn "Gradual synthesizer:"
-  mapM_ synth synthtests
-  where
-    synth (f, env, sch) = do
-      res <- solveGoal depth env sch
-      case res of
-        Nothing -> putStrLn "Synthesis failed"
-        Just t -> do
-          ok <- isJust <$> typecheck G.checkGoal env sch (TAny <$ t)
-          if ok
-            then putStrLn "OK"
-            else putStrLn "Synthesized bad term"
-    depth = 5
+  mapM_ (synth explore) synthtests
+
+roundTripSynthesisTests :: IO ()
+roundTripSynthesisTests = do
+  putStrLn "Round-Trip synthesizer:"
+  mapM_ (synth RT.generateScheme) synthtests
+
+synth :: (Environment -> Scheme -> Synthesizer (LogicT IO) (Term Type)) -> (String, Environment, Scheme) -> IO ()
+synth go (_, env, sch) = do
+  res <- solveGoal go 5 env sch -- TODO: don't bake-in depth
+  case res of
+    Nothing -> putStrLn "Synthesis failed"
+    Just t -> do
+      ok <- isJust <$> typecheck G.checkGoal env sch (TAny <$ t)
+      if ok
+        then putStrLn "OK"
+      else putStrLn "Synthesized bad term"
 
 
 
@@ -84,4 +91,5 @@ synthtests :: [(String, Environment, Scheme)]
 synthtests = [
     ("id", initEnv, Forall ["a"] ("a" --> "a"))
   , ("app1", initEnv, Forall ["a", "b"] (("a" --> "b") --> "a" --> "b"))
+  -- , ("compose", initEnv, (Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c")))
   ]

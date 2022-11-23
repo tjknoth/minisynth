@@ -13,33 +13,32 @@ checkGoal env s@(Forall _ typ) = check (bindGoal s env) typ
 check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
 check _ _ (Hole _ (Filled e)) = return e
 check env typ (Hole _ _) =
-  return $ Hole typ $ Spec env typ
+  return $ Hole typ $ Spec env typ [RLam, RSym, RApp]
 check env (TArrow a b) e =
   case e of
     (Lam _ x body) -> Lam (a --> b) x <$> check (extend x a env) b body 
-    _ -> throwError "Expected lambda"
-check env typ e = do
-  t' <- synth env e
-  addConstraint $ Constraint env (annotation t') typ
+    _ -> synth env (a --> b) e 
+check env typ e = synth env typ e
+
+checkE :: MonadND m => Environment -> Type -> Type -> Checker m ()
+checkE env t t' = do
+  addConstraint $ Constraint env t t'
   solveAll
-  return t' 
 
 -- Infer type
-synth :: MonadND m => Environment -> Term Type -> Checker m (Term Type)
-synth _ (Hole _ (Filled e)) = return e
-synth env (Hole _ _) = return $ Hole TAny $ Spec env TAny
-synth env (App _ f x) = do
-  f' <- synth env f 
+synth :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
+synth _ _ (Hole _ (Filled e)) = return e
+synth env typ (Hole _ _) = return $ Hole typ $ Spec env typ [RSym, RApp]
+synth env typ (App _ f x) = do
+  f' <- synth env (tany --> typ) f
   case annotation f' of
-    TAny -> return $ f' $$ x
     (TArrow a b) -> do
       x' <- check env a x
-      return $ App b f' x' 
+      checkE env typ b
+      return $ App b f' x'
     _ -> throwError "Expected arrow type"
-synth env (Var _ x) = do
-  t' <- lookupVar x env 
+synth env typ (Var _ x) = do
+  t' <- lookupVar x env
+  checkE env t' typ
   return $ Var t' x
-synth _ _ = throwError "Expected E-term"
-
---holeType :: Scheme
---holeType = Forall [TV "a"] $ tvar "a"
+synth _ _ _ = throwError "Expected E-term"
