@@ -22,7 +22,7 @@ module Language (
   , extend
   , occurs
   , arity
-  , toMonotype
+  , monotype, toMonotype
 ) where
 
 import           Data.String (IsString (..))
@@ -132,8 +132,11 @@ data Environment = Env {
 initEnv :: Environment
 initEnv = Env Map.empty Set.empty
 
-extend :: Id -> Type -> Environment -> Environment
-extend x t (Env e tvs) = Env (Map.insert x (Forall [] t) e) tvs
+extend :: Id -> Scheme -> Environment -> Environment
+extend x t (Env e tvs) = Env (Map.insert x t e) tvs
+
+monotype :: Type -> Scheme
+monotype = Forall []
 
 type Subst = Map TVar Type
 

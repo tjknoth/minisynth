@@ -22,7 +22,8 @@ main = do
 benchmark :: Bool -> IO ()
 benchmark direct = 
   let go = if direct then generateScheme else explore
+      env = extend "id" (Forall ["a"] ("a" --> "a")) initEnv
       name = "compose"
       depth = 10
-      schema = Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c")
-   in synthesize go name depth initEnv schema
+      schema = Forall ["a", "b", "c", "d", "e"] (("a" --> "b") --> ("b" --> "c") --> ("c" --> "d") --> ("d" --> "e") --> "a" --> "e")
+   in synthesize go name depth env schema

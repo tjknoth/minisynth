@@ -20,7 +20,7 @@ check :: MonadND m => Environment -> Type -> Term Type -> Checker m (Term Type)
 check _ _ (Hole _ _) = throwError "Hole in term"
 check env (TArrow a b) e =
   case e of
-    (Lam _ x body) -> check (extend x a env) b body
+    (Lam _ x body) -> check (extend x (monotype a) env) b body
     _ -> throwError "Expected lambda"
 check env typ e = strengthen env typ e
 
@@ -58,7 +58,7 @@ generateScheme env s@(Forall _ t) = generateI (bindGoal s env) t
 generateI :: MonadND m => Environment -> Type -> Synthesizer m (Term Type)
 generateI env (TArrow a b) = do
   x <- lift freshId
-  lam x <$> generateI (extend x a env) b
+  lam x <$> generateI (extend x (monotype a) env) b
 generateI env typ = do
   (SynthesizerState m) <- get
   enumerateUpTo m env typ

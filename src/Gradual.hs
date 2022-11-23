@@ -16,11 +16,8 @@ check env typ (Hole _ _) =
   return $ Hole typ $ Spec env typ [RLam, RSym, RApp]
 check env (TArrow a b) e =
   case e of
-    (Lam _ x body) -> Lam (a --> b) x <$> check (extend x a env) b body 
+    (Lam _ x body) -> Lam (a --> b) x <$> check (extend x (monotype a) env) b body 
     _ -> synth env (a --> b) e
-      --e' <- synth env e 
-      --checkE env (a --> b) (annotation e')
-      --return e'
 check env typ e = synth env typ e
 
 checkE :: MonadND m => Environment -> Type -> Type -> Checker m ()

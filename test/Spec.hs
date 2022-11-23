@@ -85,6 +85,7 @@ tests = [
   , (Error, Forall ["a", "b"] ((tint --> "a") --> "b" --> "a"), lam "f" (lam "x" ("f" $$ "x")))
   , (OK, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" (lam "x" (lam "y" ("f" $$ "x" $$ "y"))))
   , (Error, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" (lam "x" (lam "y" ("f" $$ "x" $$ "x"))))
+  , (Error, Forall ["a", "b", "c"] (("a" --> "b" --> "c") --> "a" --> "b" --> "c"), lam "f" (lam "x" (lam "y" ("f" $$ "x" $$ "x"))))
   ]
 
 synthtests :: [(String, Environment, Scheme)]
@@ -92,4 +93,8 @@ synthtests = [
     ("id", initEnv, Forall ["a"] ("a" --> "a"))
   , ("app1", initEnv, Forall ["a", "b"] (("a" --> "b") --> "a" --> "b"))
   , ("compose", initEnv, Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c"))
+  , ("app1id", idEnv, Forall ["a", "b"] (("a" --> "b") --> "a" --> "b"))
+  , ("compose1id", idEnv, Forall ["a", "b", "c"] (("a" --> "b") --> ("b" --> "c") --> "a" --> "c"))
   ]
+  where
+    idEnv = extend "id" (Forall ["a"] ("a" --> "a")) initEnv
