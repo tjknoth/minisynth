@@ -6,3 +6,4 @@
 * stop using TAny in gradual checker?
 * Make the CLI less stupid
 * fix normal form stuff
+* make patterns less dumb for switching to inference (gradual checker)
